@@ -1,6 +1,7 @@
+import { useEffect, useState } from "react";
 import { ArrowLeft, Download, ShieldCheck, Trash2 } from "lucide-react";
 import { api } from "../api/client";
-import type { Project } from "../types";
+import type { Project, QualityReport } from "../types";
 import { BeforeAfterViewer } from "./BeforeAfterViewer";
 
 interface ResultScreenProps {
@@ -14,6 +15,24 @@ export function ResultScreen({
   onCorrections,
   onDelete,
 }: ResultScreenProps) {
+  const [report, setReport] = useState<QualityReport | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    void api
+      .qualityReport(project.id)
+      .then((next) => {
+        if (active) setReport(next);
+      })
+      .catch(() => {
+        if (active) setReport(null);
+      });
+    return () => {
+      active = false;
+    };
+  }, [project.id]);
+
+  const warnings = report?.qualityWarnings ?? [];
   return (
     <main className="result-screen">
       <header className="result-header">
@@ -21,15 +40,24 @@ export function ResultScreen({
           <p className="eyebrow">Local export complete</p>
           <h1>Review the repaired sequence.</h1>
           <p>
-            Automated checks passed. Visual review is still the final quality
-            gate, especially around moving edges and occlusions.
+            {!report
+              ? "The output is ready, but its quality report could not be loaded. Review the repaired region carefully before downloading."
+              : warnings.length
+                ? `Automated review flagged: ${warnings.join(" ")}`
+                : `${report.encodedOutputInspected ? "Every encoded frame" : "Every reconstructed frame"} was checked for missing or black frames, background spill, boundary damage, and temporal variation. Visual review remains the final quality gate.`}
           </p>
         </div>
         <div className="result-header__proof">
           <ShieldCheck size={18} />
           <span>
             <strong>Stayed on this computer</strong>
-            <small>{project.outputHasAudio ? "Original audio restored" : "Silent output"}</small>
+            <small>
+              {report?.encodedOutputInspected
+                ? `${report.frameCount} encoded frames inspected`
+                : project.outputHasAudio
+                  ? "Original audio restored"
+                  : "Silent output"}
+            </small>
           </span>
         </div>
       </header>
@@ -59,4 +87,3 @@ export function ResultScreen({
     </main>
   );
 }
-

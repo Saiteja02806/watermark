@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+
 from fastapi import APIRouter, HTTPException, status
 from fastapi.responses import FileResponse, StreamingResponse
 
@@ -16,7 +18,16 @@ router = APIRouter(prefix="/api/projects", tags=["rendering"])
 def render_video(project_id: str, payload: RenderRequest) -> dict:
     try:
         project = project_service.get(project_id)
-        if project["status"] not in {"READY_FOR_MASK_REVIEW", "COMPLETE"}:
+        final_masks = project_service.path(project_id, "masks", "final")
+        retryable_failure = (
+            project["status"] == "FAILED"
+            and final_masks.is_dir()
+            and any(final_masks.glob("*.png"))
+        )
+        if (
+            project["status"] not in {"READY_FOR_MASK_REVIEW", "COMPLETE"}
+            and not retryable_failure
+        ):
             raise HTTPException(
                 status_code=400, detail="Review tracked masks before processing."
             )
@@ -60,3 +71,23 @@ def get_output(project_id: str) -> FileResponse:
         filename=f"{project.get('name') or 'cleaned-video'}.mp4",
     )
 
+
+@router.get("/{project_id}/quality-report")
+def get_quality_report(project_id: str) -> dict:
+    try:
+        project = project_service.get(project_id)
+        path = project_service.path(project_id, "quality_report.json")
+    except ProjectNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Project not found") from exc
+    if project["status"] != "COMPLETE" or not path.is_file():
+        raise HTTPException(status_code=404, detail="Quality report is not ready")
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise HTTPException(
+            status_code=500,
+            detail="Quality report could not be read",
+        ) from exc
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=500, detail="Quality report is invalid")
+    return payload

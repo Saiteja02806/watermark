@@ -88,6 +88,27 @@ export interface Health {
   propainter: boolean;
   fallbackTracking: boolean;
   fallbackInpainting: boolean;
+  details: {
+    sam2: {
+      source: boolean;
+      runtime: boolean;
+      checkpoint: boolean;
+      ready: boolean;
+    };
+    propainter: {
+      source: boolean;
+      runtime: boolean;
+      weights: Record<string, boolean>;
+      ready: boolean;
+      missing: string[];
+    };
+    acceleration: {
+      cudaAvailable: boolean;
+      gpuName: string | null;
+      torchVersion: string | null;
+      error: string | null;
+    };
+  };
   limits: {
     maximumDurationSeconds: number;
     maximumProcessingLongEdge: number;
@@ -95,6 +116,22 @@ export interface Health {
     activeJobs: number;
     maximumBatchVideos: number;
   };
+}
+
+export interface QualityReport {
+  valid: boolean;
+  automatedChecksPassed: boolean;
+  frameCount: number;
+  selectedFrameCount: number;
+  maskedBlackRatio: number;
+  boundaryDifference: number;
+  flickerScore: number;
+  insideMeanAbsoluteChange: number;
+  outsideMeanAbsoluteChange: number;
+  humanReviewRequired: boolean;
+  qualityWarnings: string[];
+  encodedOutputInspected?: boolean;
+  engine: "propainter" | "opencv";
 }
 
 export type EditorTool =

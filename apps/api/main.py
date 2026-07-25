@@ -149,10 +149,11 @@ def health() -> dict:
     ffmpeg = settings.ffmpeg_path
     ffprobe = settings.ffprobe_path
     sam_ready = (
-        settings.sam2_checkpoint.is_file()
-        and (settings.root_dir / "vendor" / "sam2").is_dir()
+        settings.sam2_checkpoint_available
+        and settings.sam2_source_available
         and settings.sam2_runtime_available
     )
+    acceleration = settings.acceleration_details
     return {
         "status": "ok" if ffmpeg and ffprobe else "setup_required",
         "localOnly": not settings.remote_access,
@@ -162,6 +163,22 @@ def health() -> dict:
         "propainter": settings.propainter_available,
         "fallbackTracking": True,
         "fallbackInpainting": True,
+        "details": {
+            "sam2": {
+                "source": settings.sam2_source_available,
+                "runtime": settings.sam2_runtime_available,
+                "checkpoint": settings.sam2_checkpoint_available,
+                "ready": sam_ready,
+            },
+            "propainter": {
+                "source": settings.propainter_source_available,
+                "runtime": settings.propainter_runtime_available,
+                "weights": settings.propainter_weight_status,
+                "ready": settings.propainter_available,
+                "missing": settings.propainter_missing_components,
+            },
+            "acceleration": acceleration,
+        },
         "limits": {
             "maximumDurationSeconds": settings.max_duration_seconds,
             "maximumProcessingLongEdge": settings.processing_long_edge,

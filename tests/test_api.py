@@ -11,6 +11,7 @@ from PIL import Image
 os.environ["LVC_ALLOW_TEST_CLIENT"] = "1"
 
 from apps.api.main import app  # noqa: E402
+from apps.api.services.process_service import process_supervisor  # noqa: E402
 from apps.api.services.project_service import project_service  # noqa: E402
 
 
@@ -28,6 +29,14 @@ def test_health_reports_local_only_and_media_tools(client: TestClient) -> None:
     assert payload["ffmpeg"] is True
     assert payload["ffprobe"] is True
     assert payload["limits"]["maximumDurationSeconds"] == 15
+    assert set(payload["details"]["propainter"]) >= {
+        "source",
+        "runtime",
+        "weights",
+        "ready",
+        "missing",
+    }
+    assert "cudaAvailable" in payload["details"]["acceleration"]
 
 
 def test_project_lifecycle_and_filename_sanitization(client: TestClient) -> None:
@@ -102,3 +111,49 @@ def test_mask_data_url_is_dimension_checked(client: TestClient) -> None:
     finally:
         client.delete(f"/api/projects/{project_id}")
 
+
+def test_failed_render_can_retry_when_tracked_masks_exist(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    project = client.post("/api/projects", json={"name": "Retry"}).json()
+    project_id = project["id"]
+    try:
+        final_masks = project_service.path(project_id, "masks", "final")
+        final_masks.mkdir(parents=True, exist_ok=True)
+        Image.new("L", (16, 16), color=255).save(final_masks / "000000.png")
+        project_service.update(project_id, status="FAILED", error="Setup missing")
+        monkeypatch.setattr(
+            process_supervisor,
+            "render",
+            lambda _project_id, _payload: "retry-job",
+        )
+
+        response = client.post(
+            f"/api/projects/{project_id}/render",
+            json={"engine": "opencv"},
+        )
+
+        assert response.status_code == 202
+        assert response.json()["jobId"] == "retry-job"
+    finally:
+        client.delete(f"/api/projects/{project_id}")
+
+
+def test_completed_project_exposes_quality_report(client: TestClient) -> None:
+    project = client.post("/api/projects", json={"name": "Report"}).json()
+    project_id = project["id"]
+    try:
+        report_path = project_service.path(project_id, "quality_report.json")
+        report_path.write_text(
+            '{"valid": true, "frameCount": 12}',
+            encoding="utf-8",
+        )
+        project_service.update(project_id, status="COMPLETE")
+
+        response = client.get(f"/api/projects/{project_id}/quality-report")
+
+        assert response.status_code == 200
+        assert response.json() == {"valid": True, "frameCount": 12}
+    finally:
+        client.delete(f"/api/projects/{project_id}")

@@ -21,7 +21,11 @@ for worker_dir in (
 from postprocess_masks import postprocess  # noqa: E402
 from run_propainter import run_propainter  # noqa: E402
 from structure_inpaint import structure_aware_inpaint  # noqa: E402
-from validate_output import inspect_rendered_frames, write_report  # noqa: E402
+from validate_output import (  # noqa: E402
+    inspect_encoded_video,
+    inspect_rendered_frames,
+    write_report,
+)
 from mux_audio import mux_audio  # noqa: E402
 from normalize_video import frames_to_h264  # noqa: E402
 
@@ -166,25 +170,34 @@ def main() -> None:
         )
     else:
         raise ValueError(f"Unknown inpainting engine: {engine}")
+    emit(
+        stage="INPAINTING",
+        progress=82,
+        totalFrames=frame_count,
+        message="Checking every repaired frame for damage and flicker",
+    )
+    validation_masks = [
+        _resize_mask_for_validation(path, payload)
+        for path in mask_paths
+    ]
     if rendered_paths:
         report = inspect_rendered_frames(
             validation_sources,
             rendered_paths,
-            [
-                _resize_mask_for_validation(path, payload)
-                for path in mask_paths
-            ],
+            validation_masks,
         )
-        write_report(Path(payload["projectPath"]) / "quality_report.json", report)
     else:
-        write_report(
-            Path(payload["projectPath"]) / "quality_report.json",
-            {
-                "valid": True,
-                "automatedFrameMetrics": "deferred_to_encoded_output",
-                "humanReviewRequired": True,
-            },
+        report = inspect_encoded_video(
+            silent_output,
+            sorted(Path(payload["framesPath"]).glob("*.png")),
+            validation_masks,
+            (int(payload["width"]), int(payload["height"])),
         )
+    report["engine"] = engine
+    write_report(
+        Path(payload["projectPath"]) / "quality_report.json",
+        report,
+    )
     emit(
         stage="MUXING_AUDIO",
         progress=86,

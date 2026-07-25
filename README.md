@@ -226,6 +226,28 @@ When running from a cloned checkout instead of the Docker image, run `npm ci`
 inside the Linux Pod. Never copy or reuse a Windows `node_modules` directory on
 RunPod; the bundled FFmpeg executables are platform-specific.
 
+The checkout-based model installer is idempotent and downloads the SAM 2.1
+checkpoint plus all three ProPainter weights. The startup script automatically
+uses the `sam2` and `propainter` Conda environments it creates:
+
+```bash
+cd /workspace/watermark
+npm ci
+bash scripts/install_models.sh
+bash scripts/start_container.sh
+```
+
+Before processing, confirm the health response reports both the model files and
+CUDA runtime as ready:
+
+```bash
+curl -s -u "frameclean:${LVC_PASSWORD}" \
+  http://127.0.0.1:8000/api/health
+```
+
+`propainter` must be `true`; the nested `details.propainter.missing` list names
+the exact missing source, runtime, weight, or CUDA component.
+
 For the 15-second, 720p project limit, a 60 GB `/workspace` volume is normally
 enough for a working batch. The 100 GB template remains recommended for
 20-video landscape batches because source PNGs, overlapping ProPainter chunks,

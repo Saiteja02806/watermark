@@ -116,12 +116,13 @@ export function ProcessingSettings({
         <div className="engine-note">
           <Sparkles size={16} />
           <p>
-            The CPU engine is functional but less temporally consistent.
-            Install ProPainter before quality-critical exports.
+            The OpenCV fallback works but is less temporally consistent.
+            {health?.details?.propainter.missing.length
+              ? ` ProPainter is missing: ${health.details.propainter.missing.join(", ")}.`
+              : " Install ProPainter before quality-critical exports."}
           </p>
         </div>
       )}
     </aside>
   );
 }
-

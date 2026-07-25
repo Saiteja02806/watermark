@@ -6,6 +6,7 @@ import type {
   CanvasBox,
   CanvasPoint,
   AutoWatermarkResult,
+  QualityReport,
 } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -62,6 +63,9 @@ export const api = {
 
   getProject: (projectId: string) =>
     request<Project>(`/api/projects/${projectId}`),
+
+  qualityReport: (projectId: string) =>
+    request<QualityReport>(`/api/projects/${projectId}/quality-report`),
 
   upload: async (projectId: string, file: File) => {
     const form = new FormData();

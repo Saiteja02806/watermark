@@ -13,6 +13,7 @@ import { api } from "./api/client";
 import { BatchRail } from "./components/BatchRail";
 import { BatchResultScreen } from "./components/BatchResultScreen";
 import { EditorHeader } from "./components/EditorHeader";
+import { FailureScreen } from "./components/FailureScreen";
 import { MaskToolbar } from "./components/MaskToolbar";
 import { ProcessingPanel } from "./components/ProcessingPanel";
 import { ProcessingSettings } from "./components/ProcessingSettings";
@@ -654,6 +655,12 @@ function App() {
               )}
             </aside>
           </>
+        ) : store.project.status === "FAILED" ? (
+          <FailureScreen
+            error={store.project.error}
+            health={health}
+            onRetry={() => setShowSettings(true)}
+          />
         ) : (
           <main className="processing-workspace">
             <div className="processing-visual" aria-hidden="true">

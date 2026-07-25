@@ -291,8 +291,11 @@ class ProcessSupervisor:
         if engine == "auto":
             engine = "propainter" if settings.propainter_available else "opencv"
         if engine == "propainter" and not settings.propainter_available:
+            missing = ", ".join(settings.propainter_missing_components)
             raise ValueError(
-                "ProPainter source, runtime, or model weights are not ready."
+                f"ProPainter is not ready. Missing: {missing}. "
+                "Run bash scripts/install_models.sh, restart the application, "
+                "and confirm /api/health reports propainter=true."
             )
         output_width, output_height = output_dimensions(
             int(project.get("processingWidth") or 0),
