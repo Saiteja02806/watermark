@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import os
+import platform
 import shlex
 import shutil
+import sys
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -32,6 +34,52 @@ def _resolve_binary(env_name: str, executable: str, candidates: list[Path]) -> P
         if candidate.is_file():
             return candidate.resolve()
     return None
+
+
+def _binary_architecture(machine: str | None = None) -> str:
+    normalized = (machine or platform.machine()).strip().lower()
+    if normalized in {"x86_64", "amd64"}:
+        return "x64"
+    if normalized in {"x86", "i386", "i686"}:
+        return "ia32"
+    if normalized in {"arm64", "aarch64"}:
+        return "arm64"
+    return normalized
+
+
+def _ffmpeg_candidates(
+    root_dir: Path, platform_name: str | None = None
+) -> list[Path]:
+    current_platform = (platform_name or sys.platform).lower()
+    filename = "ffmpeg.exe" if current_platform.startswith("win") else "ffmpeg"
+    return [root_dir / "node_modules" / "ffmpeg-static" / filename]
+
+
+def _ffprobe_candidates(
+    root_dir: Path,
+    platform_name: str | None = None,
+    machine: str | None = None,
+) -> list[Path]:
+    current_platform = (platform_name or sys.platform).lower()
+    architecture = _binary_architecture(machine)
+    if current_platform.startswith("win"):
+        operating_system = "win32"
+        filename = "ffprobe.exe"
+    elif current_platform == "darwin":
+        operating_system = "darwin"
+        filename = "ffprobe"
+    else:
+        operating_system = "linux"
+        filename = "ffprobe"
+    return [
+        root_dir
+        / "node_modules"
+        / "ffprobe-static"
+        / "bin"
+        / operating_system
+        / architecture
+        / filename
+    ]
 
 
 @dataclass(frozen=True)
@@ -96,10 +144,7 @@ class Settings:
         return _resolve_binary(
             "FFMPEG_PATH",
             "ffmpeg",
-            [
-                self.root_dir / "node_modules" / "ffmpeg-static" / "ffmpeg.exe",
-                self.root_dir / "node_modules" / "ffmpeg-static" / "ffmpeg",
-            ],
+            _ffmpeg_candidates(self.root_dir),
         )
 
     @property
@@ -107,22 +152,7 @@ class Settings:
         return _resolve_binary(
             "FFPROBE_PATH",
             "ffprobe",
-            [
-                self.root_dir
-                / "node_modules"
-                / "ffprobe-static"
-                / "bin"
-                / "win32"
-                / "x64"
-                / "ffprobe.exe",
-                self.root_dir
-                / "node_modules"
-                / "ffprobe-static"
-                / "bin"
-                / "linux"
-                / "x64"
-                / "ffprobe",
-            ],
+            _ffprobe_candidates(self.root_dir),
         )
 
     @property

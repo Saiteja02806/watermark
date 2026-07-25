@@ -222,6 +222,10 @@ based on PyTorch 2.7.1 with CUDA 12.8 so its CUDA kernels support the Blackwell
 GPU architecture. Do not replace it with the older CUDA 12.1 image. The
 48-frame/four-context profile is the conservative default for its 32 GB VRAM.
 
+When running from a cloned checkout instead of the Docker image, run `npm ci`
+inside the Linux Pod. Never copy or reuse a Windows `node_modules` directory on
+RunPod; the bundled FFmpeg executables are platform-specific.
+
 For the 15-second, 720p project limit, a 60 GB `/workspace` volume is normally
 enough for a working batch. The 100 GB template remains recommended for
 20-video landscape batches because source PNGs, overlapping ProPainter chunks,
