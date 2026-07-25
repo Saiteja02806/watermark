@@ -1,0 +1,5 @@
+numpy>=1.26
+opencv-python-headless>=4.9
+Pillow>=10
+# Install SAM 2 itself from vendor/sam2 in the dedicated Python 3.10 environment.
+

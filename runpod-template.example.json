@@ -1,0 +1,20 @@
+{
+  "name": "frameclean-gpu-batch",
+  "imageName": "YOUR_DOCKERHUB_USER/frameclean:latest",
+  "isServerless": false,
+  "containerDiskInGb": 30,
+  "volumeInGb": 100,
+  "volumeMountPath": "/workspace",
+  "ports": [
+    "8000/http"
+  ],
+  "env": {
+    "LVC_REMOTE_ACCESS": "1",
+    "LVC_USERNAME": "frameclean",
+    "LVC_PASSWORD": "REPLACE_WITH_A_LONG_RANDOM_PASSWORD",
+    "LVC_DATA_DIR": "/workspace/frameclean-data",
+    "LVC_INPAINTING_ENGINE": "propainter",
+    "LVC_PROCESSING_LONG_EDGE": "720",
+    "LVC_MAX_BATCH_VIDEOS": "20"
+  }
+}

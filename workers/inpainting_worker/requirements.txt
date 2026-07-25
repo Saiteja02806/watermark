@@ -1,0 +1,3 @@
+# ProPainter has its own pinned requirements in vendor/ProPainter.
+# Keep it in a separate Python 3.8 environment.
+
