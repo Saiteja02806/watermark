@@ -96,10 +96,13 @@ class SelectionRequest(BaseModel):
     def has_prompt(self) -> bool:
         return bool(
             self.positivePoints
-            or self.negativePoints
             or self.box
             or self.manualMaskDataUrl
         )
+
+
+class AutoWatermarkRequest(BaseModel):
+    sampleCount: int = Field(default=24, ge=4, le=72)
 
 
 class BatchSelectionRequest(SelectionRequest):

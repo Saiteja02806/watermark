@@ -17,7 +17,7 @@ def save_selection(project_id: str, payload: SelectionRequest) -> dict:
     if not payload.has_prompt():
         raise HTTPException(
             status_code=400,
-            detail="Add a point, draw a box, or paint a mask before tracking.",
+            detail="Add a positive point, draw a box, or paint a mask before tracking.",
         )
     try:
         project = project_service.get(project_id)
@@ -89,4 +89,3 @@ def correct_mask(
         raise HTTPException(status_code=404, detail="Project not found") from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
-

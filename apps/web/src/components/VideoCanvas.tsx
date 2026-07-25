@@ -172,9 +172,17 @@ export function VideoCanvas({
   const handlePointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
     if (!drawingRef.current) return;
     drawingRef.current = false;
-    if (tool === "box" && draftBox) {
-      if (draftBox.x2 - draftBox.x1 > 2 && draftBox.y2 - draftBox.y1 > 2) {
-        onBox(draftBox);
+    if (tool === "box" && boxStartRef.current) {
+      const start = boxStartRef.current;
+      const end = toPoint(event);
+      const finalBox = {
+        x1: Math.min(start.x, end.x),
+        y1: Math.min(start.y, end.y),
+        x2: Math.max(start.x, end.x),
+        y2: Math.max(start.y, end.y),
+      };
+      if (finalBox.x2 - finalBox.x1 > 2 && finalBox.y2 - finalBox.y1 > 2) {
+        onBox(finalBox);
       }
       setDraftBox(null);
       boxStartRef.current = null;

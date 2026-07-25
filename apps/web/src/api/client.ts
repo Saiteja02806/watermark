@@ -5,6 +5,7 @@ import type {
   RenderSettings,
   CanvasBox,
   CanvasPoint,
+  AutoWatermarkResult,
 } from "../types";
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? "";
@@ -99,6 +100,13 @@ export const api = {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ direction: "both", engine }),
+    }),
+
+  detectWatermark: (projectId: string) =>
+    request<AutoWatermarkResult>(`/api/projects/${projectId}/watermark/auto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sampleCount: 24 }),
     }),
 
   applyBatchSelection: (

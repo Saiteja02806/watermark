@@ -13,12 +13,19 @@ CHUNK_CORE_FRAMES = 10
 CHUNK_CONTEXT_FRAMES = 1
 
 
+def _env_int(name: str) -> int | None:
+    value = os.getenv(name)
+    if value is None:
+        return None
+    return int(value)
+
+
 def propainter_chunk_sizes() -> tuple[int, int]:
     """Choose a conservative outer chunk size from VRAM or explicit settings."""
-    configured_core = os.getenv("LVC_PROPAINTER_CHUNK_CORE_FRAMES")
-    configured_context = os.getenv("LVC_PROPAINTER_CHUNK_CONTEXT_FRAMES")
-    if configured_core:
-        core = max(4, int(configured_core))
+    configured_core = _env_int("LVC_PROPAINTER_CHUNK_CORE_FRAMES")
+    configured_context = _env_int("LVC_PROPAINTER_CHUNK_CONTEXT_FRAMES")
+    if configured_core is not None:
+        core = max(4, configured_core)
     else:
         core = CHUNK_CORE_FRAMES
         try:
@@ -35,15 +42,19 @@ def propainter_chunk_sizes() -> tuple[int, int]:
             )
             total_mib = int(result.stdout.splitlines()[0].strip())
             if total_mib >= 22_000:
-                core = 24
+                core = 48
             elif total_mib >= 14_000:
                 core = 16
         except (OSError, ValueError, IndexError, subprocess.TimeoutExpired):
             pass
     context = (
-        max(0, int(configured_context))
+        max(0, configured_context)
         if configured_context is not None
-        else (2 if core > CHUNK_CORE_FRAMES else CHUNK_CONTEXT_FRAMES)
+        else (
+            4
+            if core >= 48
+            else 2 if core > CHUNK_CORE_FRAMES else CHUNK_CONTEXT_FRAMES
+        )
     )
     return core, context
 
@@ -55,7 +66,12 @@ def propainter_preset(quality: str) -> tuple[int, int, int]:
         "balanced": (4, 20, 10),
         "high": (4, 16, 10),
     }
-    return presets.get(quality, presets["balanced"])
+    neighbor, stride, subvideo = presets.get(quality, presets["balanced"])
+    return (
+        _env_int("LVC_PROPAINTER_NEIGHBOR_LENGTH") or neighbor,
+        _env_int("LVC_PROPAINTER_REF_STRIDE") or stride,
+        _env_int("LVC_PROPAINTER_SUBVIDEO_LENGTH") or subvideo,
+    )
 
 
 def _worker_environment(payload: dict[str, Any]) -> dict[str, str]:

@@ -15,6 +15,8 @@
     "LVC_DATA_DIR": "/workspace/frameclean-data",
     "LVC_INPAINTING_ENGINE": "propainter",
     "LVC_PROCESSING_LONG_EDGE": "720",
-    "LVC_MAX_BATCH_VIDEOS": "20"
+    "LVC_MAX_BATCH_VIDEOS": "20",
+    "LVC_PROPAINTER_CHUNK_CORE_FRAMES": "48",
+    "LVC_PROPAINTER_CHUNK_CONTEXT_FRAMES": "4"
   }
 }

@@ -23,6 +23,7 @@ import { VideoTimeline } from "./components/VideoTimeline";
 import { useProjectEvents } from "./hooks/useProjectEvents";
 import { useEditorStore } from "./stores/editorStore";
 import type { Batch, BatchItem, Health } from "./types";
+import type { AutoWatermarkResult, CanvasBox } from "./types";
 
 function App() {
   const store = useEditorStore();
@@ -206,7 +207,6 @@ function App() {
     if (!project) return;
     if (
       !store.positivePoints.length &&
-      !store.negativePoints.length &&
       !store.box &&
       !store.manualMask
     ) {
@@ -246,6 +246,51 @@ function App() {
       store.setProject(await api.getProject(project.id));
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Tracking could not start");
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const autoDetectWatermark = async () => {
+    const project = store.project;
+    if (!project) return;
+    setActionBusy(true);
+    setError(null);
+    setNotice(null);
+    try {
+      const detected = await api.detectWatermark(project.id);
+      const detectedBox = toCanvasBox(detected);
+      store.setFrameIndex(detected.frameIndex);
+      store.setBox(detectedBox);
+      store.setManualMask(detected.manualMaskDataUrl);
+      store.setScreenFixed(true);
+      if (batch) {
+        await api.applyBatchSelection(
+          batch.id,
+          project.id,
+          detected.frameIndex,
+          [],
+          [],
+          detectedBox,
+          detected.manualMaskDataUrl,
+          true,
+        );
+        setBatch(await api.getBatch(batch.id));
+      } else {
+        await api.track(project.id, "fixed");
+      }
+      store.setProject(await api.getProject(project.id));
+      setNotice(
+        `Auto watermark mask created (${Math.round(
+          detected.confidence * 100,
+        )}% confidence). Review it before processing.`,
+      );
+    } catch (reason) {
+      setError(
+        reason instanceof Error
+          ? reason.message
+          : "Auto watermark detection could not find a stable overlay",
+      );
     } finally {
       setActionBusy(false);
     }
@@ -401,7 +446,6 @@ function App() {
   const canvasReady = isSelecting || isReviewing;
   const hasPrompt = Boolean(
     store.positivePoints.length ||
-      store.negativePoints.length ||
       store.box ||
       store.manualMask,
   );
@@ -517,25 +561,39 @@ function App() {
 
               <div className="action-panel__buttons">
                 {isSelecting ? (
-                  <button
-                    className="button button--primary button--full"
-                    type="button"
-                    disabled={
-                      actionBusy ||
-                      !hasPrompt ||
-                      Boolean(batch && batch.status !== "READY_FOR_SELECTION")
-                    }
-                    onClick={() => void saveAndTrack()}
-                  >
-                    <ScanSearch size={17} />
-                    {batch && batch.status !== "READY_FOR_SELECTION"
-                      ? "Waiting for batch preparation"
-                      : hasPrompt
-                        ? batch
-                          ? "Apply selection to batch"
-                          : "Track selection"
-                        : "Select a region first"}
-                  </button>
+                  <>
+                    <button
+                      className="button button--quiet button--full"
+                      type="button"
+                      disabled={
+                        actionBusy ||
+                        Boolean(batch && batch.status !== "READY_FOR_SELECTION")
+                      }
+                      onClick={() => void autoDetectWatermark()}
+                    >
+                      <Sparkles size={16} />
+                      Auto Watermark
+                    </button>
+                    <button
+                      className="button button--primary button--full"
+                      type="button"
+                      disabled={
+                        actionBusy ||
+                        !hasPrompt ||
+                        Boolean(batch && batch.status !== "READY_FOR_SELECTION")
+                      }
+                      onClick={() => void saveAndTrack()}
+                    >
+                      <ScanSearch size={17} />
+                      {batch && batch.status !== "READY_FOR_SELECTION"
+                        ? "Waiting for batch preparation"
+                        : hasPrompt
+                          ? batch
+                            ? "Apply selection to batch"
+                            : "Track selection"
+                          : "Select a region first"}
+                    </button>
+                  </>
                 ) : (
                   <>
                     <button
@@ -694,3 +752,8 @@ function PromptSummary({
 }
 
 export default App;
+
+function toCanvasBox(result: AutoWatermarkResult): CanvasBox {
+  const [x1, y1, x2, y2] = result.box;
+  return { x1, y1, x2, y2 };
+}

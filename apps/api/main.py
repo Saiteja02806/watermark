@@ -16,7 +16,7 @@ from starlette.middleware.trustedhost import TrustedHostMiddleware
 from .config import settings
 from .database.sqlite import initialize_database, recover_interrupted_jobs
 from .models import RenderRequest, TrackRequest
-from .routes import batches, masks, media, projects, rendering, tracking
+from .routes import batches, masks, media, projects, rendering, tracking, watermark
 from .services.process_service import process_supervisor
 from .services.project_service import project_service
 
@@ -28,51 +28,52 @@ async def lifespan(_: FastAPI):
             "LVC_PASSWORD is required when LVC_REMOTE_ACCESS=1."
         )
     initialize_database()
-    for interrupted in recover_interrupted_jobs():
-        project_id = interrupted["project_id"]
-        job_type = interrupted["job_type"]
-        try:
-            if job_type == "NORMALIZE":
-                process_supervisor.normalize(project_id)
-            elif job_type == "TRACK":
-                project_dir = project_service.path(project_id, "work")
-                request_path = project_dir / "track_request.json"
-                if not request_path.exists():
-                    request_path = project_dir / "track_input.json"
-                payload = json.loads(
-                    request_path.read_text(encoding="utf-8")
-                )
-                process_supervisor.track(
+    if os.getenv("LVC_ALLOW_TEST_CLIENT") != "1":
+        for interrupted in recover_interrupted_jobs():
+            project_id = interrupted["project_id"]
+            job_type = interrupted["job_type"]
+            try:
+                if job_type == "NORMALIZE":
+                    process_supervisor.normalize(project_id)
+                elif job_type == "TRACK":
+                    project_dir = project_service.path(project_id, "work")
+                    request_path = project_dir / "track_request.json"
+                    if not request_path.exists():
+                        request_path = project_dir / "track_input.json"
+                    payload = json.loads(
+                        request_path.read_text(encoding="utf-8")
+                    )
+                    process_supervisor.track(
+                        project_id,
+                        TrackRequest(
+                            direction=payload.get("direction", "both"),
+                            engine=payload.get("engine", "auto"),
+                        ),
+                    )
+                elif job_type == "RENDER":
+                    project_dir = project_service.path(project_id, "work")
+                    request_path = project_dir / "render_request.json"
+                    if not request_path.exists():
+                        request_path = project_dir / "render_input.json"
+                    payload = json.loads(
+                        request_path.read_text(encoding="utf-8")
+                    )
+                    process_supervisor.render(
+                        project_id,
+                        RenderRequest(
+                            quality=payload.get("quality", "balanced"),
+                            resolution=payload.get("resolution", "720p"),
+                            maskExpansion=payload.get("maskExpansion", 4),
+                            preserveAudio=payload.get("preserveAudio", True),
+                            engine=payload.get("engine", "auto"),
+                        ),
+                    )
+            except Exception as exc:
+                project_service.update(
                     project_id,
-                    TrackRequest(
-                        direction=payload.get("direction", "both"),
-                        engine=payload.get("engine", "auto"),
-                    ),
+                    status="FAILED",
+                    error=f"Could not resume after server restart: {exc}",
                 )
-            elif job_type == "RENDER":
-                project_dir = project_service.path(project_id, "work")
-                request_path = project_dir / "render_request.json"
-                if not request_path.exists():
-                    request_path = project_dir / "render_input.json"
-                payload = json.loads(
-                    request_path.read_text(encoding="utf-8")
-                )
-                process_supervisor.render(
-                    project_id,
-                    RenderRequest(
-                        quality=payload.get("quality", "balanced"),
-                        resolution=payload.get("resolution", "720p"),
-                        maskExpansion=payload.get("maskExpansion", 4),
-                        preserveAudio=payload.get("preserveAudio", True),
-                        engine=payload.get("engine", "auto"),
-                    ),
-                )
-        except Exception as exc:
-            project_service.update(
-                project_id,
-                status="FAILED",
-                error=f"Could not resume after server restart: {exc}",
-            )
     yield
 
 
@@ -175,6 +176,7 @@ app.include_router(batches.router)
 app.include_router(projects.router)
 app.include_router(media.router)
 app.include_router(masks.router)
+app.include_router(watermark.router)
 app.include_router(tracking.router)
 app.include_router(rendering.router)
 

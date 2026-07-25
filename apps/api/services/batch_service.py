@@ -172,7 +172,7 @@ class BatchService:
             )
         if not payload.has_prompt():
             raise BatchValidationError(
-                "Add a point, draw a box, or paint the watermark first."
+                "Add a positive point, draw a box, or paint the watermark first."
             )
 
         reference_width = int(reference.get("processingWidth") or 0)

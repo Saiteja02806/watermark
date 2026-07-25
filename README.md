@@ -12,7 +12,8 @@ cloud-storage calls, remote inference APIs, analytics, or SaaS databases.
 - Local upload with sanitized filenames and UUID project folders.
 - FFprobe inspection, orientation-aware 30 FPS normalization, 720p cap, editor
   proxy, and frame extraction.
-- Point, box, brush, and eraser input with resize-safe coordinate mapping.
+- Auto Watermark detection for stable overlays, plus point, box, brush, and
+  eraser input with resize-safe coordinate mapping.
 - SAM 2.1 adapter in a separate Python 3.10 environment.
 - OpenCV motion tracking fallback.
 - A screen-fixed mask path for timestamps and accidental overlays that remain
@@ -78,8 +79,9 @@ for normal use.
 ## How to remove a fixed overlay cleanly
 
 1. Upload a clip up to 15 seconds.
-2. Choose **Box** or **Brush** and cover the complete visible mark, including
-   its faint edge. A click alone is usually too small for a graphic overlay.
+2. Use **Auto Watermark** for a stable logo/text overlay, or choose **Box** /
+   **Brush** and cover the complete visible mark, including its faint edge.
+   A click alone is usually too small for a graphic overlay.
 3. Enable **Keep mask fixed on screen** when the mark stays in one screen
    location.
 4. Track the selection and inspect frames near the start, middle, and end.
@@ -91,8 +93,8 @@ for normal use.
 1. Choose or drop two or more videos on the upload screen.
 2. Wait until every valid clip says it is ready. A failed upload is isolated and
    does not block the remaining clips.
-3. On any prepared reference clip, draw a tight box or brush mask around the
-   watermark.
+3. On any prepared reference clip, use **Auto Watermark**, or draw a tight box
+   or brush mask around the watermark.
 4. Leave **Use this position across the batch** enabled for a screen-fixed mark.
    Frameclean scales that relative location to each video's processing size.
 5. Apply the selection. Fixed masks are generated for every valid clip.
@@ -203,13 +205,16 @@ The browser will request the username and password configured above. Do not
 deploy with an empty or reused password. The application refuses to start in
 remote mode without `LVC_PASSWORD`.
 
-RunPod GPUs with at least 22 GB VRAM automatically use larger 24-frame
-ProPainter chunks with two context frames. Six GB GPUs keep the verified
+RunPod GPUs with at least 22 GB VRAM automatically use larger 48-frame
+ProPainter chunks with four context frames. Six GB GPUs keep the verified
 10-frame/one-context profile. Override these only after a representative test:
 
 ```text
-LVC_PROPAINTER_CHUNK_CORE_FRAMES=24
-LVC_PROPAINTER_CHUNK_CONTEXT_FRAMES=2
+LVC_PROPAINTER_CHUNK_CORE_FRAMES=48
+LVC_PROPAINTER_CHUNK_CONTEXT_FRAMES=4
+LVC_PROPAINTER_NEIGHBOR_LENGTH=4
+LVC_PROPAINTER_REF_STRIDE=20
+LVC_PROPAINTER_SUBVIDEO_LENGTH=10
 ```
 
 All originals, masks, SQLite state, and exports live under

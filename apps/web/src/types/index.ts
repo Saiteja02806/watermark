@@ -117,6 +117,14 @@ export interface CanvasBox {
   y2: number;
 }
 
+export interface AutoWatermarkResult {
+  frameIndex: number;
+  box: [number, number, number, number];
+  manualMaskDataUrl: string;
+  confidence: number;
+  areaRatio: number;
+}
+
 export interface RenderSettings {
   quality: "fast" | "balanced" | "high";
   resolution: "480p" | "720p";

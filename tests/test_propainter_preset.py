@@ -25,6 +25,14 @@ def test_chunk_size_can_be_tuned_for_runpod(monkeypatch) -> None:
     assert runner.propainter_chunk_sizes() == (24, 2)
 
 
+def test_propainter_inference_knobs_can_be_tuned(monkeypatch) -> None:
+    monkeypatch.setenv("LVC_PROPAINTER_NEIGHBOR_LENGTH", "6")
+    monkeypatch.setenv("LVC_PROPAINTER_REF_STRIDE", "12")
+    monkeypatch.setenv("LVC_PROPAINTER_SUBVIDEO_LENGTH", "18")
+
+    assert propainter_preset("balanced") == (6, 12, 18)
+
+
 def test_chunked_runner_reassembles_every_frame(
     tmp_path: Path,
     monkeypatch,
