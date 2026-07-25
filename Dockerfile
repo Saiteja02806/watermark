@@ -8,7 +8,7 @@ RUN npm ci
 COPY apps/web apps/web
 RUN npm run build
 
-FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime
+FROM pytorch/pytorch:2.7.1-cuda12.8-cudnn9-runtime
 
 ARG SAM2_COMMIT=2b90b9f5ceec907a1c18123530e92e794ad901a4
 ARG PROPAINTER_COMMIT=e870e79321c31b733e2031af5aa2fb1fe3ac7eec

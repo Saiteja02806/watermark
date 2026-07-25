@@ -15,8 +15,8 @@ fi
 
 conda create -n sam2 python=3.10 -y
 conda run -n sam2 python -m pip install \
-  torch==2.5.1 torchvision==0.20.1 \
-  --index-url https://download.pytorch.org/whl/cu121
+  torch==2.7.1 torchvision==0.22.1 \
+  --index-url https://download.pytorch.org/whl/cu128
 SAM2_BUILD_CUDA=0 conda run -n sam2 python -m pip install -e vendor/sam2
 
 mkdir -p models/sam2
@@ -28,9 +28,11 @@ if [[ ! -d vendor/ProPainter ]]; then
   git clone https://github.com/sczhou/ProPainter.git vendor/ProPainter
 fi
 
-conda create -n propainter python=3.8 -y
+conda create -n propainter python=3.10 -y
+conda run -n propainter python -m pip install \
+  torch==2.7.1 torchvision==0.22.1 \
+  --index-url https://download.pytorch.org/whl/cu128
 conda run -n propainter python -m pip install -r vendor/ProPainter/requirements.txt
 
 echo "Model source and environments are installed."
 echo "Review the ProPainter noncommercial license before use."
-

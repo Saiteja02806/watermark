@@ -9,6 +9,7 @@ import sys
 import threading
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
@@ -22,6 +23,12 @@ from .render_dimensions import output_dimensions
 
 class JobConflictError(RuntimeError):
     pass
+
+
+@dataclass(frozen=True)
+class ProjectCompletion:
+    status: ProjectStatus
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class ProcessSupervisor:
@@ -104,7 +111,7 @@ class ProcessSupervisor:
         project_id: str,
         job_type: str,
         project_status: ProjectStatus,
-        runner: Callable[[str, threading.Event], None],
+        runner: Callable[[str, threading.Event], ProjectCompletion],
         recovery_payload: dict[str, Any] | None = None,
     ) -> str:
         active = self.latest_job(project_id)
@@ -143,17 +150,23 @@ class ProcessSupervisor:
         job_id: str,
         project_id: str,
         cancel_event: threading.Event,
-        runner: Callable[[str, threading.Event], None],
+        runner: Callable[[str, threading.Event], ProjectCompletion],
     ) -> None:
         try:
             if cancel_event.is_set():
                 raise InterruptedError("Processing was cancelled")
             self._update_job(job_id, status="RUNNING", message="Worker started")
-            runner(job_id, cancel_event)
+            completion = runner(job_id, cancel_event)
             if cancel_event.is_set():
                 raise InterruptedError("Processing was cancelled")
             self._update_job(
                 job_id, status="COMPLETE", progress=100, message="Stage complete"
+            )
+            project_service.update(
+                project_id,
+                status=completion.status,
+                metadata=completion.metadata,
+                error=None,
             )
         except InterruptedError:
             self._update_job(
@@ -180,7 +193,7 @@ class ProcessSupervisor:
 
     def _run_normalize(
         self, job_id: str, project_id: str, cancel_event: threading.Event
-    ) -> None:
+    ) -> ProjectCompletion:
         project_dir = project_service.path(project_id)
         original = project_service.find_original(project_id)
 
@@ -190,11 +203,9 @@ class ProcessSupervisor:
         metadata = ffmpeg_service.normalize(
             original, project_dir, cancel_event, progress
         )
-        project_service.update(
-            project_id,
+        return ProjectCompletion(
             status=ProjectStatus.READY_FOR_SELECTION,
             metadata=metadata,
-            error=None,
         )
 
     def _run_track(
@@ -203,7 +214,7 @@ class ProcessSupervisor:
         project_id: str,
         request: dict[str, Any],
         cancel_event: threading.Event,
-    ) -> None:
+    ) -> ProjectCompletion:
         project_dir = project_service.path(project_id)
         selection_path = project_dir / "selection.json"
         if not selection_path.is_file():
@@ -255,15 +266,13 @@ class ProcessSupervisor:
             if metrics_path.is_file()
             else {}
         )
-        project_service.update(
-            project_id,
+        return ProjectCompletion(
             status=ProjectStatus.READY_FOR_MASK_REVIEW,
             metadata={
                 "trackerEngine": result.get("engine", engine),
                 "suspiciousFrames": metrics.get("suspiciousFrames", []),
                 "sceneCuts": metrics.get("sceneCuts", []),
             },
-            error=None,
         )
 
     def _run_render(
@@ -272,7 +281,7 @@ class ProcessSupervisor:
         project_id: str,
         request: dict[str, Any],
         cancel_event: threading.Event,
-    ) -> None:
+    ) -> ProjectCompletion:
         project_dir = project_service.path(project_id)
         project = project_service.get(project_id)
         original = project_service.find_original(project_id)
@@ -344,8 +353,7 @@ class ProcessSupervisor:
         output_metadata = ffmpeg_service.validate_output(
             final_path, expected_output
         )
-        project_service.update(
-            project_id,
+        return ProjectCompletion(
             status=ProjectStatus.COMPLETE,
             metadata={
                 "inpaintingEngine": result.get("engine", engine),
@@ -355,7 +363,6 @@ class ProcessSupervisor:
                 "outputWidth": output_metadata["width"],
                 "outputHeight": output_metadata["height"],
             },
-            error=None,
         )
 
     def _run_worker(
